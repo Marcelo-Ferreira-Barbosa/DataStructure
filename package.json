@@ -1,0 +1,16 @@
+{
+  "name": "datastructure-studio",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.18.0",
+  "engines": { "node": ">=22.12.0" },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @dss/api --filter @dss/web dev",
+    "dev:web": "pnpm --filter @dss/web dev",
+    "dev:api": "pnpm --filter @dss/api dev",
+    "build": "pnpm --filter @dss/web build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "check": "pnpm typecheck && pnpm test && pnpm build"
+  }
+}

@@ -1,0 +1,13 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Versões compartilhadas: os pacotes referenciam com "catalog:".
+catalog:
+  typescript: 6.0.3
+  vitest: 5.1.0
+  "@types/node": 22.20.5
+
+# Scripts de instalação permitidos (política do pnpm): só o esbuild, que valida seu binário nativo.
+allowBuilds:
+  esbuild: true
