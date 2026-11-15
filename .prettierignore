@@ -1,0 +1,5 @@
+# O Prettier já ignora o que está no .gitignore (dist, coverage, node_modules, generated).
+pnpm-lock.yaml
+
+# Documentação: tabelas e diagramas escritos à mão; não reformatar automaticamente.
+docs/

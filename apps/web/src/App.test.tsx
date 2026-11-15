@@ -5,9 +5,9 @@ import { App } from './App';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-it('renderiza o título e a revisão da Engine', async () => {
+it('renderiza o título e a revisão da Engine', () => {
   const container = document.createElement('div');
-  await act(async () => {
+  act(() => {
     createRoot(container).render(<App />);
   });
   expect(container.querySelector('h1')?.textContent).toBe('DataStructure Studio');
