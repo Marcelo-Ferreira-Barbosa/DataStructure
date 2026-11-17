@@ -1,6 +1,6 @@
 # DataStructure Studio — Estrutura do Monorepositório
 
-> **Versão:** 0.1 (**proposta para aprovação**)
+> **Versão:** 0.1 (**proposta para aprovação**) · atualizada em 17/11/2026: árvore da Engine alinhada ao `ENGINE.md` (v0.2)
 > **Data:** 14/11/2026
 > **Base:** `ARCHITECTURE.md` (seção 6), ADR-0001, ADR-0002, ADR-0007, ADR-0013, ADR-0014 e `DATABASE.md`
 > **Escopo:** define **onde cada coisa fica, como se chama e como se relaciona**. **Nada foi criado** no repositório: nenhuma pasta, arquivo de configuração ou dependência. A criação só ocorre **após a sua aprovação** (seção 13).
@@ -114,15 +114,16 @@ datastructure-studio/
 │   ├── engine/                            # @dss/engine — TypeScript puro, ZERO dependências
 │   │   ├── src/
 │   │   │   ├── index.ts                   ●  API pública (única porta de entrada)
-│   │   │   ├── core/                      ○  Passo, execução, registrador, contadores, PRNG, limites, validação
-│   │   │   ├── catalog/                   ○  Registro e descritores dos itens
-│   │   │   └── labs/                      ○  Implementações, uma pasta por laboratório
-│   │   │       ├── linear/                ○  stack/, queue/
+│   │   │   ├── core/                      ●  Contratos, defineItem, registrador, PRNG, limites, replay (ver ENGINE.md §4)
+│   │   │   ├── catalog/                   ●  Registro dos itens
+│   │   │   ├── testing/                   ●  Apoio a testes: suíte de invariantes (nunca importado por produção)
+│   │   │   └── labs/                      ●  Implementações, uma pasta por laboratório
+│   │   │       ├── linear/                ●  stack/ (queue/ ○)
 │   │   │       ├── linked-lists/          ○  singly-linked-list/
 │   │   │       ├── sorting/               ○  bubble-sort/, insertion-sort/, merge-sort/
 │   │   │       └── searching/             ○  linear-search/, binary-search/
 │   │   ├── package.json                   ●  Sem "dependencies"
-│   │   ├── tsconfig.json                  ●  Sem lib DOM; types vazio
+│   │   ├── tsconfig.json                  ●  Sem lib DOM; types vazio; exactOptionalPropertyTypes
 │   │   └── vitest.config.ts               ●  Ambiente Node; limiares de cobertura
 │   │
 │   └── contracts/                         # @dss/contracts — Zod + tipos de fronteira

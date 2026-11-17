@@ -22,6 +22,7 @@ Visão geral e diagramas: [`../ARCHITECTURE.md`](../ARCHITECTURE.md).
 | [0012](ADR-0012-topologia-e-docker.md) | Topologia, mesma origem e Docker | Proposta |
 | [0013](ADR-0013-estrategia-de-testes-e-ci.md) | Estratégia de testes e CI | Proposta |
 | [0014](ADR-0014-politica-de-dependencias.md) | Política de dependências e avaliação da stack | Proposta |
+| [0015](ADR-0015-contratos-da-engine.md) | Contratos da Engine | **Aceita** |
 
 ## Status possíveis
 

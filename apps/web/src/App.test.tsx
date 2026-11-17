@@ -11,5 +11,5 @@ it('renderiza o título e a revisão da Engine', () => {
     createRoot(container).render(<App />);
   });
   expect(container.querySelector('h1')?.textContent).toBe('DataStructure Studio');
-  expect(container.textContent).toContain('Engine rev. 0');
+  expect(container.textContent).toContain('Engine rev. 1');
 });

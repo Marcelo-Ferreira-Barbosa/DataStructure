@@ -6,6 +6,15 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 const TEST_FILES = ['**/*.test.{ts,tsx}'];
+
+// Engine: sem dependências externas e sem importar o apoio de testes em código de produção.
+const ENGINE_PATTERNS = [
+  { regex: '^[^.]', message: 'A Engine não tem dependências: só imports relativos.' },
+  {
+    group: ['**/testing/**'],
+    message: 'testing/ é apoio de testes e não pode ser importado por código de produção.',
+  },
+];
 const DEEP_IMPORT = {
   group: ['@dss/*/*'],
   message: 'Importe pela entrada pública do pacote (ex.: "@dss/engine").',
@@ -111,17 +120,7 @@ export default tseslint.config(
     files: ['packages/engine/src/**/*.ts'],
     ignores: TEST_FILES,
     rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              regex: '^[^.]',
-              message: 'A Engine não tem dependências: só imports relativos.',
-            },
-          ],
-        },
-      ],
+      'no-restricted-imports': ['error', { patterns: ENGINE_PATTERNS }],
       'no-restricted-globals': [
         'error',
         ...[
@@ -146,6 +145,26 @@ export default tseslint.config(
         {
           selector: 'CallExpression[callee.property.name=/^(sort|toSorted)$/]',
           message: 'Ordenação nativa é proibida na Engine: implemente o algoritmo do laboratório.',
+        },
+      ],
+    },
+  },
+
+  // Engine, núcleo: nunca depende dos itens nem do catálogo (ENGINE.md §4.2).
+  {
+    files: ['packages/engine/src/core/**/*.ts'],
+    ignores: TEST_FILES,
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            ...ENGINE_PATTERNS,
+            {
+              group: ['**/labs/**', '**/catalog/**'],
+              message: 'core/ não pode depender de labs/ nem de catalog/.',
+            },
+          ],
         },
       ],
     },
