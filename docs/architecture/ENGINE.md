@@ -1462,7 +1462,7 @@ Para **cada item**, **cada exemplo** e **cada operação** do descritor (com ent
 
 | **Não** verificado / pendente | Observação |
 |---|---|
-| Famílias além da Pilha | Os tipos de `queue`, `linked-list`, `binary-tree`, `heap`, `hash-table` e `graph` compilam e `inspectState` os cobre, mas nenhum algoritmo real os exercitou |
+| Famílias além da Pilha e da Lista encadeada | Os tipos de `queue`, `binary-tree`, `heap`, `hash-table` e `graph` compilam e `inspectState` os cobre, mas nenhum algoritmo real os exercitou (`linked-list` passou a ser exercitada em 17/11/2026, ver §19.4) |
 | Desempenho e memória com ordenação real (~2.500 passos) | A estimativa da seção 9.4 continua sendo aritmética |
 | I-16 (crescimento dos contadores × complexidade declarada) | Só faz sentido com algoritmos de ordenação/busca |
 | Teste de arquitetura "Engine sem `dependencies`" (ADR-0014) | Hoje garantido pelo lint (imports não relativos proibidos) e por revisão; falta o teste que lê o `package.json` |
@@ -1575,6 +1575,17 @@ Para **cada item**, **cada exemplo** e **cada operação** do descritor (com ent
 
 - O `build` do Web cresceu de 219,7 kB para 226,3 kB (+6,5 kB) porque o Web importa `ENGINE_REVISION` pelo `index.ts`, que agora reexporta o catálogo inteiro. Não é problema hoje; **na etapa do visualizador, conferir o tamanho** e, se necessário, usar importações mais específicas ou `sideEffects: false`.
 - Falta o catálogo de textos (chaves → português) no Web; os passos da Pilha só têm `{chave, parâmetros}`.
+
+### 19.4 Segundo item: lista simplesmente encadeada (PROMPT 10, 17/11/2026)
+
+O catálogo passou a ter dois itens: `stack` (família `stack`, vetor) e `singly-linked-list` (família `linked-list`, nós por id), **de tipos visuais distintos**. Documentação completa em [`SINGLY_LINKED_LIST.md`](SINGLY_LINKED_LIST.md); decisões em [ADR-0016](DECISIONS/ADR-0016-lista-encadeada-modelo-e-item.md).
+
+- Operações: `insertHead`, `insertTail`, `toArray`. Resultado `values` usado pela primeira vez.
+- Usou **sem alterar nenhum contrato** do `core/`: `LinkedListState`, `Highlight` (`head`, `tail`, `current`, `visited`, alvo `edge`), `ExecutionResult` e o registrador serviram como estavam. Isso é evidência a favor do congelamento (ADR-0015 §10), que ainda espera um terceiro tipo visual (árvore, grafo ou hash).
+- Contadores (provisórios, Q17/Q84): `moves` = gravação de ponteiro; `accesses` = leitura de nó; `comparisons` = 0.
+- Novo teste de conformidade entre o item e uma lista real (`list.ts`) com sequências aleatórias semeadas.
+- Totais após a entrega: 166 testes na Engine (eram 102 + 5 amostrados pelo registro).
+- Perguntas Q82 a Q84: respondidas pelo autor (ver `SINGLY_LINKED_LIST.md` §7).
 
 ---
 

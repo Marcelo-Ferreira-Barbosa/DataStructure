@@ -8,6 +8,8 @@ import type { StructureState } from './state';
 export type ExecutionResult =
   | { readonly type: 'none' }
   | { readonly type: 'value'; readonly value: number }
+  /** Conteúdo lido da estrutura, na ordem (ex.: `toArray` da lista ligada). */
+  | { readonly type: 'values'; readonly values: readonly number[] }
   | { readonly type: 'found'; readonly id: ElementId; readonly index: number }
   | { readonly type: 'not-found' };
 

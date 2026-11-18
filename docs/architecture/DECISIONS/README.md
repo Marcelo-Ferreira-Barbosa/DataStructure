@@ -23,6 +23,7 @@ Visão geral e diagramas: [`../ARCHITECTURE.md`](../ARCHITECTURE.md).
 | [0013](ADR-0013-estrategia-de-testes-e-ci.md) | Estratégia de testes e CI | Proposta |
 | [0014](ADR-0014-politica-de-dependencias.md) | Política de dependências e avaliação da stack | Proposta |
 | [0015](ADR-0015-contratos-da-engine.md) | Contratos da Engine | **Aceita** |
+| [0016](ADR-0016-lista-encadeada-modelo-e-item.md) | Lista encadeada: modelo de referência e item da Engine | **Aceita** |
 
 ## Status possíveis
 
