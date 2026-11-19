@@ -1573,7 +1573,7 @@ Para **cada item**, **cada exemplo** e **cada operação** do descritor (com ent
 
 ### 19.3 Limitações conhecidas
 
-- O `build` do Web cresceu de 219,7 kB para 226,3 kB (+6,5 kB) porque o Web importa `ENGINE_REVISION` pelo `index.ts`, que agora reexporta o catálogo inteiro. Não é problema hoje; **na etapa do visualizador, conferir o tamanho** e, se necessário, usar importações mais específicas ou `sideEffects: false`.
+- O `build` do Web cresceu de 219,7 kB para 226,3 kB (+6,5 kB) porque o Web importa `ENGINE_REVISION` pelo `index.ts`, que agora reexporta o catálogo inteiro. Não é problema hoje; **na etapa do visualizador, conferir o tamanho** e, se necessário, usar importações mais específicas ou `sideEffects: false`. Medições: 219,7 kB (antes da Engine), 226,3 kB (Pilha), 232,2 kB (lista v0.1) e **241,2 kB** (lista v0.2): cada item novo soma ~6 a 9 kB porque o catálogo inteiro entra no pacote do Web, que só precisa de `ENGINE_REVISION`. Tendência a corrigir antes de mais itens.
 - Falta o catálogo de textos (chaves → português) no Web; os passos da Pilha só têm `{chave, parâmetros}`.
 
 ### 19.4 Segundo item: lista simplesmente encadeada (PROMPT 10, 17/11/2026)
@@ -1585,7 +1585,40 @@ O catálogo passou a ter dois itens: `stack` (família `stack`, vetor) e `singly
 - Contadores (provisórios, Q17/Q84): `moves` = gravação de ponteiro; `accesses` = leitura de nó; `comparisons` = 0.
 - Novo teste de conformidade entre o item e uma lista real (`list.ts`) com sequências aleatórias semeadas.
 - Totais após a entrega: 166 testes na Engine (eram 102 + 5 amostrados pelo registro).
-- Perguntas Q82 a Q84: respondidas pelo autor (ver `SINGLY_LINKED_LIST.md` §7).
+- Perguntas Q82 a Q84: respondidas pelo autor (ver `SINGLY_LINKED_LIST.md` §10).
+
+### 19.5 Operações avançadas e rastreamento da lista (PROMPT 11, 18/11/2026)
+
+A lista passou de 3 para **10 operações** (`insertAt`, `removeHead`, `removeTail`, `removeAt`, `search`, `getAt`, `traverse` somadas a `insertHead`, `insertTail`, `toArray`). Documentação completa em [`SINGLY_LINKED_LIST.md`](SINGLY_LINKED_LIST.md) (v0.2).
+
+**Nenhum contrato do `core/` foi alterado.** O que a lista exercitou pela primeira vez, sem exigir mudança:
+
+| Recurso do contrato | Como a lista o usou |
+|---|---|
+| `RejectionReason` `EMPTY_STRUCTURE` e `POSITION_OUT_OF_RANGE` (§8) | Remoção/consulta em lista vazia (ERR-004) e posição que não existe nesta lista (ERR-005): execução curta de 2 passos, estado intacto, parâmetros `{position, size}` na mensagem |
+| `InputProblem` `OUT_OF_RANGE` para `role: 'position'` | Posição negativa, não inteira ou > 49 barrada pelo descritor, sem execução |
+| `ExecutionResult` `found` / `not-found` (§10) | `search`: valor ausente é resultado normal (`completed`), não erro |
+| `Highlight` com alvo `edge` e papéis `previous`, `removed`, `found`, `not-found`, `visited`, `current` | Ligação recém-criada, nó desligado, rastro do percurso |
+| `ParamDescriptor.role` `position` e `target` | Formulário da interface montado do descritor |
+| `Complexity` com melhor ≠ médio = pior | Operações posicionais: O(1) / O(n) / O(n) |
+
+**Rastreamento.** O `Step` e o `StepRecorder` já cobriam os seis itens do PROMPT 11 (estado, descrição, nó atual, nós destacados, operação, pseudocódigo). A tabela de correspondência está em `SINGLY_LINKED_LIST.md` §4. A parte reaproveitável ficou em `steps.ts` do item (percurso `walk`, rejeições, destaques); **não** foi promovida ao `core/` por ser específica de listas ligadas (decisão: promover só quando uma segunda estrutura, como a árvore, precisar de um percurso igual).
+
+**Padrão de organização de um item grande**, a repetir nos próximos: `types.ts` (tipos) · `<estado>-state.ts` (funções puras sobre o estado) · `steps.ts` (peças de rastreamento) · um arquivo por grupo de operações · arquivo do item (descritor + despacho). O arquivo único de 400 linhas da v0.1 não escalaria para 10 operações.
+
+**Mudança de comportamento aprovado?** Nenhuma. As 3 operações da v0.1 foram **movidas** (de `singly-linked-list.ts` para `insert.ts` e `query.ts`) sem alterar passos, mensagens, âncoras ou contadores; os 166 testes anteriores passam sem edição.
+
+**Resultados:** 292 testes na Engine (166 anteriores + 126 novos), cobertura de instruções 98,7% e de ramos 98,36%. O teste "âncoras e mensagens declaradas = usadas" passou a fazer parte da lista e vale como modelo para os próximos itens.
+
+**Perguntas novas:** Q85 (remover por valor), Q86 (congelar retratos), Q87 (resultado de `traverse`): respondidas em 19/11, ver §19.6.
+
+### 19.6 Respostas Q85 a Q87 e fechamento do congelamento (19/11/2026)
+
+- **Q85, remover por valor:** aprovada. Não implementada: fica para o prompt que a pedir (é a operação em que o ERR-006 `VALUE_NOT_FOUND` ocorre).
+- **Q87, `traverse`:** continua sem resultado.
+- **Q86, congelamento:** aprovada, mas a pergunta partia de uma premissa errada minha. O `core/recorder.ts` **já congelava cada passo** (`deepFreeze`) desde o PROMPT 09; a v0.2 de `SINGLY_LINKED_LIST.md` dizia o contrário e foi corrigida. O que faltava e foi feito: **a `Execution` inteira é congelada** em `define-item.ts` (o array de passos e os metadados ainda eram alteráveis). Efeito colateral já existente e agora documentado: o estado de entrada do chamador também fica congelado após `run`.
+- **Testes:** novo `core/freeze.test.ts` (8 testes): todas as estruturas do catálogo entregam execuções 100% congeladas; alterar passo, array de passos, metadados, contadores ou destaques lança `TypeError`; o registrador congela o passo no instante do registro (teste falha se esse congelamento for retirado, e também falha se o da `Execution` for retirado). Os dois congelamentos têm papéis diferentes: o do registrador pega alteração *durante* a execução; o da `Execution`, depois dela.
+- **Totais:** 300 testes na Engine, cobertura 98,7% (instruções) e 98,36% (ramos), build do Web 241,30 kB.
 
 ---
 

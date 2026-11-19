@@ -119,7 +119,7 @@ datastructure-studio/
 │   │   │   ├── testing/                   ●  Apoio a testes: suíte de invariantes (nunca importado por produção)
 │   │   │   └── labs/                      ●  Implementações, uma pasta por laboratório
 │   │   │       ├── linear/                ●  stack/ (queue/ ○)
-│   │   │       ├── linked-lists/          ●  singly-linked-list/ (list.ts = modelo de referência; singly-linked-list.ts = item)
+│   │   │       ├── linked-lists/          ●  singly-linked-list/ (list.ts = modelo de referência; types, list-state, steps, insert, remove, query + singly-linked-list.ts = item)
 │   │   │       ├── sorting/               ○  bubble-sort/, insertion-sort/, merge-sort/
 │   │   │       └── searching/             ○  linear-search/, binary-search/
 │   │   ├── package.json                   ●  Sem "dependencies"

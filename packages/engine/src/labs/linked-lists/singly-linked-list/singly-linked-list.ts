@@ -1,124 +1,54 @@
-import { defineItem } from '../../../core/define-item';
 import type { Complexity } from '../../../core/complexity';
-import { elementId, type ElementId } from '../../../core/ids';
-import type { ItemDefinition } from '../../../core/item';
+import { defineItem } from '../../../core/define-item';
+import { elementId } from '../../../core/ids';
+import type { ExecuteOutcome, ItemDefinition } from '../../../core/item';
 import { LIMITS } from '../../../core/limits';
-import { EngineInvariantError } from '../../../core/problems';
-import type { LinkedListState, ListNode } from '../../../core/state';
-import type { Highlight } from '../../../core/step';
+import type { LinkedListState } from '../../../core/state';
+import { insertAtSteps, insertHeadSteps, insertTailSteps } from './insert';
+import { isEmpty, nodesInOrder, pointerHighlights } from './list-state';
+import { getAtSteps, searchSteps, toArraySteps, traverseSteps } from './query';
+import { removeAtCore, removeHeadSteps, type Removal } from './remove';
+import { rejectEmpty, rejectPosition, type Recorder } from './steps';
+import type { SinglyLinkedListOperation, SinglyLinkedListTypes } from './types';
 
-export type SinglyLinkedListOperation =
-  | { readonly type: 'insertHead'; readonly value: number }
-  | { readonly type: 'insertTail'; readonly value: number }
-  | { readonly type: 'toArray' };
-
-export type SinglyLinkedListAnchor =
-  | 'sll.insertHead.entry'
-  | 'sll.insertHead.allocate'
-  | 'sll.insertHead.link-next'
-  | 'sll.insertHead.set-head'
-  | 'sll.insertHead.set-tail'
-  | 'sll.insertHead.done'
-  | 'sll.insertTail.entry'
-  | 'sll.insertTail.check-empty'
-  | 'sll.insertTail.allocate'
-  | 'sll.insertTail.set-head'
-  | 'sll.insertTail.link-tail'
-  | 'sll.insertTail.set-tail'
-  | 'sll.insertTail.done'
-  | 'sll.toArray.entry'
-  | 'sll.toArray.visit'
-  | 'sll.toArray.done';
-
-export type SinglyLinkedListMessages = {
-  'sll.insertHead.start': { value: number };
-  'sll.insertHead.allocated': { value: number };
-  'sll.insertHead.linked-next': { value: number; hasNext: boolean };
-  'sll.insertHead.done': { value: number; size: number };
-  'sll.insertTail.start': { value: number };
-  'sll.insertTail.checking': { empty: boolean };
-  'sll.insertTail.allocated': { value: number };
-  'sll.insertTail.linked-tail': { tailValue: number; value: number };
-  'sll.insertTail.done': { value: number; size: number };
-  'sll.head.updated': { value: number };
-  'sll.tail.updated': { value: number };
-  'sll.toArray.start': { size: number };
-  'sll.toArray.visit': { value: number; index: number };
-  'sll.toArray.done': { size: number };
-};
-
-export interface SinglyLinkedListTypes {
-  readonly state: LinkedListState;
-  readonly operation: SinglyLinkedListOperation;
-  readonly messages: SinglyLinkedListMessages;
-  readonly anchors: SinglyLinkedListAnchor;
-}
+export type {
+  SinglyLinkedListAnchor,
+  SinglyLinkedListMessages,
+  SinglyLinkedListOperation,
+  SinglyLinkedListTypes,
+} from './types';
 
 // ---------------------------------------------------------------------------------------------
-// Leitura do estado (funções puras, sem registrar passos)
+// Complexidade teórica por operação (n = nós). Não é medição de tempo de execução (benchmark):
+// descreve como o NÚMERO DE PASSOS ELEMENTARES cresce com n. Ver SINGLY_LINKED_LIST.md §5.
 // ---------------------------------------------------------------------------------------------
 
-function nodeById(state: LinkedListState, id: ElementId): ListNode {
-  const node = state.nodes.find((n) => n.id === id);
-  if (node === undefined) throw new EngineInvariantError(`Nó ${id} não existe no estado`);
-  return node;
-}
-
-/**
- * Nós na ordem da lista: segue `next` a partir de `head`. É o que define "estar na lista":
- * um nó alocado, mas ainda não ligado, não aparece aqui.
- */
-function nodesInOrder(state: LinkedListState): ListNode[] {
-  const ordered: ListNode[] = [];
-  let currentId = state.head;
-  while (currentId !== null) {
-    if (ordered.length >= state.nodes.length) {
-      throw new EngineInvariantError('Ciclo detectado em lista simplesmente encadeada');
-    }
-    const node = nodeById(state, currentId);
-    ordered.push(node);
-    currentId = node.next;
-  }
-  return ordered;
-}
-
-/** Tamanho da lista = nós alcançáveis a partir de `head`. */
-function sizeOf(state: LinkedListState): number {
-  return nodesInOrder(state).length;
-}
-
-function isEmpty(state: LinkedListState): boolean {
-  return state.head === null;
-}
-
-/** Devolve um novo estado com o campo `next` do nó `id` trocado. */
-function withNext(state: LinkedListState, id: ElementId, next: ElementId | null): LinkedListState {
-  return { ...state, nodes: state.nodes.map((n) => (n.id === id ? { ...n, next } : n)) };
-}
-
-/** Ponteiros `head` e `tail` como destaques (só os que apontam para algum nó). */
-function pointerHighlights(state: LinkedListState): Highlight[] {
-  const out: Highlight[] = [];
-  if (state.head !== null) out.push({ target: { type: 'element', id: state.head }, role: 'head' });
-  if (state.tail !== null) out.push({ target: { type: 'element', id: state.tail }, role: 'tail' });
-  return out;
-}
-
-// ---------------------------------------------------------------------------------------------
-// Descritor
-// ---------------------------------------------------------------------------------------------
-
+/** Não depende do tamanho: mexe em um número fixo de ponteiros. */
 const CONSTANT: Complexity = {
   time: { best: 'O(1)', average: 'O(1)', worst: 'O(1)' },
   space: 'O(1)',
   amortized: null,
 };
 
-const LINEAR_TRAVERSAL: Complexity = {
-  time: { best: 'O(n)', average: 'O(n)', worst: 'O(n)' },
-  space: 'O(n)',
+/**
+ * Chega ao alvo andando de nó em nó: o melhor caso é o alvo estar na ponta de entrada
+ * (início, ou o 1º nó); no médio e no pior, percorre uma fração de n ou n nós.
+ */
+const WALKS_TO_TARGET: Complexity = {
+  time: { best: 'O(1)', average: 'O(n)', worst: 'O(n)' },
+  space: 'O(1)',
   amortized: null,
 };
+
+/** Percorre sempre todos os nós, sem guardar nada: O(n) em tempo, O(1) em espaço extra. */
+const FULL_WALK: Complexity = {
+  time: { best: 'O(n)', average: 'O(n)', worst: 'O(n)' },
+  space: 'O(1)',
+  amortized: null,
+};
+
+/** Igual ao percurso, mas o resultado é um array novo com n posições: O(n) de espaço. */
+const FULL_WALK_COPYING: Complexity = { ...FULL_WALK, space: 'O(n)' };
 
 const VALUE_PARAM = {
   name: 'value',
@@ -126,6 +56,107 @@ const VALUE_PARAM = {
   min: LIMITS.minValue,
   max: LIMITS.maxValue,
 } as const;
+
+/** Índice a partir de 0. O maior índice possível é o do 50º nó (a lista cabe no máximo 50). */
+const POSITION_PARAM = {
+  name: 'position',
+  role: 'position',
+  min: 0,
+  max: LIMITS.maxElements - 1,
+} as const;
+
+const TARGET_PARAM = { ...VALUE_PARAM, role: 'target' } as const;
+
+// ---------------------------------------------------------------------------------------------
+// Execução
+// ---------------------------------------------------------------------------------------------
+
+type Outcome = ExecuteOutcome<SinglyLinkedListTypes>;
+
+const done = (finalState: LinkedListState): Outcome => ({
+  outcome: 'completed',
+  finalState,
+  result: { type: 'none' },
+});
+
+const removed = (removal: Removal): Outcome => ({
+  outcome: 'completed',
+  finalState: removal.state,
+  result: { type: 'value', value: removal.value },
+});
+
+function executeRemoveHead(state: LinkedListState, recorder: Recorder): Outcome {
+  recorder.step({
+    state,
+    highlights: pointerHighlights(state),
+    message: { key: 'sll.removeHead.start', params: {} },
+    anchor: 'sll.removeHead.check-empty',
+  });
+  if (isEmpty(state)) return rejectEmpty(state, recorder, 'sll.removeHead.check-empty');
+  return removed(removeHeadSteps(state, recorder));
+}
+
+function executeRemoveTail(state: LinkedListState, recorder: Recorder): Outcome {
+  recorder.step({
+    state,
+    highlights: pointerHighlights(state),
+    message: { key: 'sll.removeTail.start', params: {} },
+    anchor: 'sll.removeTail.check-empty',
+  });
+  if (isEmpty(state)) return rejectEmpty(state, recorder, 'sll.removeTail.check-empty');
+  // Remover o último é remover a última posição: o desligamento existe em um só lugar.
+  const last = nodesInOrder(state).length - 1;
+  recorder.step({
+    state,
+    highlights: pointerHighlights(state),
+    message: { key: 'sll.removeTail.delegate', params: { position: last } },
+    anchor: 'sll.removeTail.delegate',
+  });
+  return removed(removeAtCore(state, last, recorder));
+}
+
+function executeRemoveAt(state: LinkedListState, position: number, recorder: Recorder): Outcome {
+  const size = nodesInOrder(state).length;
+  recorder.step({
+    state,
+    highlights: pointerHighlights(state),
+    message: { key: 'sll.removeAt.start', params: { position } },
+    anchor: 'sll.removeAt.check-position',
+  });
+  if (size === 0) return rejectEmpty(state, recorder, 'sll.removeAt.check-position');
+  if (position >= size) {
+    return rejectPosition(state, recorder, position, size, 'sll.removeAt.check-position');
+  }
+  if (position === 0) {
+    recorder.step({
+      state,
+      highlights: pointerHighlights(state),
+      message: { key: 'sll.removeAt.at-head', params: {} },
+      anchor: 'sll.removeAt.check-position',
+    });
+  }
+  return removed(removeAtCore(state, position, recorder));
+}
+
+function executeInsertAt(
+  state: LinkedListState,
+  position: number,
+  value: number,
+  recorder: Recorder,
+): Outcome {
+  const size = nodesInOrder(state).length;
+  // Inserir é possível de 0 até `size` (em `size`, vira inserção no final).
+  if (position > size) {
+    recorder.step({
+      state,
+      highlights: pointerHighlights(state),
+      message: { key: 'sll.insertAt.start', params: { position, value } },
+      anchor: 'sll.insertAt.entry',
+    });
+    return rejectPosition(state, recorder, position, size, 'sll.insertAt.check-position');
+  }
+  return done(insertAtSteps(state, position, value, recorder));
+}
 
 const singlyLinkedListDefinition: ItemDefinition<SinglyLinkedListTypes> = {
   descriptor: {
@@ -135,7 +166,14 @@ const singlyLinkedListDefinition: ItemDefinition<SinglyLinkedListTypes> = {
     operations: [
       { type: 'insertHead', params: [VALUE_PARAM], complexity: CONSTANT },
       { type: 'insertTail', params: [VALUE_PARAM], complexity: CONSTANT },
-      { type: 'toArray', params: [], complexity: LINEAR_TRAVERSAL },
+      { type: 'insertAt', params: [POSITION_PARAM, VALUE_PARAM], complexity: WALKS_TO_TARGET },
+      { type: 'removeHead', params: [], complexity: CONSTANT },
+      { type: 'removeTail', params: [], complexity: WALKS_TO_TARGET },
+      { type: 'removeAt', params: [POSITION_PARAM], complexity: WALKS_TO_TARGET },
+      { type: 'search', params: [TARGET_PARAM], complexity: WALKS_TO_TARGET },
+      { type: 'getAt', params: [POSITION_PARAM], complexity: WALKS_TO_TARGET },
+      { type: 'traverse', params: [], complexity: FULL_WALK },
+      { type: 'toArray', params: [], complexity: FULL_WALK_COPYING },
     ],
     anchors: [
       'sll.insertHead.entry',
@@ -151,11 +189,46 @@ const singlyLinkedListDefinition: ItemDefinition<SinglyLinkedListTypes> = {
       'sll.insertTail.link-tail',
       'sll.insertTail.set-tail',
       'sll.insertTail.done',
+      'sll.insertAt.entry',
+      'sll.insertAt.check-position',
+      'sll.insertAt.walk',
+      'sll.insertAt.allocate',
+      'sll.insertAt.link-next',
+      'sll.insertAt.link-previous',
+      'sll.insertAt.done',
+      'sll.removeHead.check-empty',
+      'sll.removeHead.read',
+      'sll.removeHead.set-head',
+      'sll.removeHead.set-tail',
+      'sll.removeHead.done',
+      'sll.removeTail.check-empty',
+      'sll.removeTail.delegate',
+      'sll.removeAt.check-position',
+      'sll.removeAt.walk',
+      'sll.removeAt.read-target',
+      'sll.removeAt.unlink',
+      'sll.removeAt.set-tail',
+      'sll.removeAt.done',
+      'sll.search.entry',
+      'sll.search.compare',
+      'sll.search.found',
+      'sll.search.not-found',
+      'sll.getAt.check-position',
+      'sll.getAt.walk',
+      'sll.getAt.done',
+      'sll.traverse.entry',
+      'sll.traverse.visit',
+      'sll.traverse.done',
       'sll.toArray.entry',
       'sll.toArray.visit',
       'sll.toArray.done',
     ],
     messageKeys: [
+      'sll.empty',
+      'sll.position.out-of-range',
+      'sll.head.updated',
+      'sll.tail.updated',
+      'sll.tail.cleared',
       'sll.insertHead.start',
       'sll.insertHead.allocated',
       'sll.insertHead.linked-next',
@@ -165,8 +238,36 @@ const singlyLinkedListDefinition: ItemDefinition<SinglyLinkedListTypes> = {
       'sll.insertTail.allocated',
       'sll.insertTail.linked-tail',
       'sll.insertTail.done',
-      'sll.head.updated',
-      'sll.tail.updated',
+      'sll.insertAt.start',
+      'sll.insertAt.at-head',
+      'sll.insertAt.at-tail',
+      'sll.insertAt.visit',
+      'sll.insertAt.allocated',
+      'sll.insertAt.linked-next',
+      'sll.insertAt.linked-previous',
+      'sll.insertAt.done',
+      'sll.removeHead.start',
+      'sll.removeHead.reading',
+      'sll.removeHead.head-moved',
+      'sll.removeHead.done',
+      'sll.removeTail.start',
+      'sll.removeTail.delegate',
+      'sll.removeAt.start',
+      'sll.removeAt.at-head',
+      'sll.removeAt.visit',
+      'sll.removeAt.target',
+      'sll.removeAt.unlinked',
+      'sll.removeAt.done',
+      'sll.search.start',
+      'sll.search.compare',
+      'sll.search.found',
+      'sll.search.not-found',
+      'sll.getAt.start',
+      'sll.getAt.visit',
+      'sll.getAt.done',
+      'sll.traverse.start',
+      'sll.traverse.visit',
+      'sll.traverse.done',
       'sll.toArray.start',
       'sll.toArray.visit',
       'sll.toArray.done',
@@ -192,7 +293,10 @@ const singlyLinkedListDefinition: ItemDefinition<SinglyLinkedListTypes> = {
   },
 
   checkOperation(state, operation) {
-    const inserts = operation.type === 'insertHead' || operation.type === 'insertTail';
+    const inserts =
+      operation.type === 'insertHead' ||
+      operation.type === 'insertTail' ||
+      operation.type === 'insertAt';
     if (inserts && state.nodes.length >= LIMITS.maxElements) {
       return [{ code: 'LIMIT_EXCEEDED', path: 'value', meta: { min: 0, max: LIMITS.maxElements } }];
     }
@@ -200,195 +304,28 @@ const singlyLinkedListDefinition: ItemDefinition<SinglyLinkedListTypes> = {
   },
 
   execute({ state, operation, recorder }) {
-    switch (operation.type) {
-      case 'insertHead': {
-        const { value } = operation;
-        const wasEmpty = isEmpty(state);
-        recorder.step({
-          state,
-          highlights: pointerHighlights(state),
-          message: { key: 'sll.insertHead.start', params: { value } },
-          anchor: 'sll.insertHead.entry',
-        });
-
-        // 1. O nó nasce solto: existe no estado, mas ninguém aponta para ele.
-        const newId = elementId(state.nextId);
-        const allocated: LinkedListState = {
-          ...state,
-          nextId: state.nextId + 1,
-          nodes: [...state.nodes, { id: newId, value, next: null, prev: null }],
-        };
-        recorder.step({
-          state: allocated,
-          highlights: [{ target: { type: 'element', id: newId }, role: 'inserted' }],
-          message: { key: 'sll.insertHead.allocated', params: { value } },
-          anchor: 'sll.insertHead.allocate',
-        });
-
-        // 2. O novo nó aponta para o antigo início (ou para nada, se a lista estava vazia).
-        const linked = withNext(allocated, newId, state.head);
-        const linkHighlights: Highlight[] = [
-          { target: { type: 'element', id: newId }, role: 'inserted' },
-        ];
-        if (state.head !== null) {
-          linkHighlights.push(
-            { target: { type: 'element', id: state.head }, role: 'head' },
-            { target: { type: 'edge', from: newId, to: state.head }, role: 'inserted' },
-          );
-        }
-        recorder.move();
-        recorder.step({
-          state: linked,
-          highlights: linkHighlights,
-          message: {
-            key: 'sll.insertHead.linked-next',
-            params: { value, hasNext: state.head !== null },
-          },
-          anchor: 'sll.insertHead.link-next',
-        });
-
-        // 3. O início da lista passa a ser o novo nó.
-        let current: LinkedListState = { ...linked, head: newId };
-        recorder.move();
-        recorder.step({
-          state: current,
-          highlights: [{ target: { type: 'element', id: newId }, role: 'head' }],
-          message: { key: 'sll.head.updated', params: { value } },
-          anchor: 'sll.insertHead.set-head',
-        });
-
-        // 4. Lista que estava vazia: o único nó também é o último.
-        if (wasEmpty) {
-          current = { ...current, tail: newId };
-          recorder.move();
-          recorder.step({
-            state: current,
-            highlights: [{ target: { type: 'element', id: newId }, role: 'tail' }],
-            message: { key: 'sll.tail.updated', params: { value } },
-            anchor: 'sll.insertHead.set-tail',
-          });
-        }
-
-        recorder.step({
-          state: current,
-          highlights: [{ target: { type: 'element', id: newId }, role: 'inserted' }],
-          message: { key: 'sll.insertHead.done', params: { value, size: sizeOf(current) } },
-          anchor: 'sll.insertHead.done',
-        });
-        return { outcome: 'completed', finalState: current, result: { type: 'none' } };
-      }
-
-      case 'insertTail': {
-        const { value } = operation;
-        recorder.step({
-          state,
-          highlights: pointerHighlights(state),
-          message: { key: 'sll.insertTail.start', params: { value } },
-          anchor: 'sll.insertTail.entry',
-        });
-
-        const wasEmpty = isEmpty(state);
-        recorder.step({
-          state,
-          highlights: pointerHighlights(state),
-          message: { key: 'sll.insertTail.checking', params: { empty: wasEmpty } },
-          anchor: 'sll.insertTail.check-empty',
-        });
-
-        const newId = elementId(state.nextId);
-        const allocated: LinkedListState = {
-          ...state,
-          nextId: state.nextId + 1,
-          nodes: [...state.nodes, { id: newId, value, next: null, prev: null }],
-        };
-        recorder.step({
-          state: allocated,
-          highlights: [{ target: { type: 'element', id: newId }, role: 'inserted' }],
-          message: { key: 'sll.insertTail.allocated', params: { value } },
-          anchor: 'sll.insertTail.allocate',
-        });
-
-        let current: LinkedListState = allocated;
-        if (state.tail === null) {
-          // Lista vazia: o novo nó é, ao mesmo tempo, início e fim.
-          current = { ...current, head: newId };
-          recorder.move();
-          recorder.step({
-            state: current,
-            highlights: [{ target: { type: 'element', id: newId }, role: 'head' }],
-            message: { key: 'sll.head.updated', params: { value } },
-            anchor: 'sll.insertTail.set-head',
-          });
-        } else {
-          // Lista com elementos: o último nó passa a apontar para o novo.
-          const oldTail = nodeById(state, state.tail);
-          recorder.access();
-          current = withNext(current, oldTail.id, newId);
-          recorder.move();
-          recorder.step({
-            state: current,
-            highlights: [
-              { target: { type: 'element', id: oldTail.id }, role: 'tail' },
-              { target: { type: 'element', id: newId }, role: 'inserted' },
-              { target: { type: 'edge', from: oldTail.id, to: newId }, role: 'inserted' },
-            ],
-            message: {
-              key: 'sll.insertTail.linked-tail',
-              params: { tailValue: oldTail.value, value },
-            },
-            anchor: 'sll.insertTail.link-tail',
-          });
-        }
-
-        current = { ...current, tail: newId };
-        recorder.move();
-        recorder.step({
-          state: current,
-          highlights: [{ target: { type: 'element', id: newId }, role: 'tail' }],
-          message: { key: 'sll.tail.updated', params: { value } },
-          anchor: 'sll.insertTail.set-tail',
-        });
-
-        recorder.step({
-          state: current,
-          highlights: [{ target: { type: 'element', id: newId }, role: 'inserted' }],
-          message: { key: 'sll.insertTail.done', params: { value, size: sizeOf(current) } },
-          anchor: 'sll.insertTail.done',
-        });
-        return { outcome: 'completed', finalState: current, result: { type: 'none' } };
-      }
-
-      case 'toArray': {
-        const ordered = nodesInOrder(state);
-        recorder.step({
-          state,
-          highlights: pointerHighlights(state),
-          message: { key: 'sll.toArray.start', params: { size: ordered.length } },
-          anchor: 'sll.toArray.entry',
-        });
-
-        const values: number[] = [];
-        const visited: Highlight[] = [];
-        ordered.forEach((node, index) => {
-          recorder.access();
-          values.push(node.value);
-          recorder.step({
-            state,
-            highlights: [...visited, { target: { type: 'element', id: node.id }, role: 'current' }],
-            message: { key: 'sll.toArray.visit', params: { value: node.value, index } },
-            anchor: 'sll.toArray.visit',
-          });
-          visited.push({ target: { type: 'element', id: node.id }, role: 'visited' });
-        });
-
-        recorder.step({
-          state,
-          highlights: visited,
-          message: { key: 'sll.toArray.done', params: { size: values.length } },
-          anchor: 'sll.toArray.done',
-        });
-        return { outcome: 'completed', finalState: state, result: { type: 'values', values } };
-      }
+    const op: SinglyLinkedListOperation = operation;
+    switch (op.type) {
+      case 'insertHead':
+        return done(insertHeadSteps(state, op.value, recorder));
+      case 'insertTail':
+        return done(insertTailSteps(state, op.value, recorder));
+      case 'insertAt':
+        return executeInsertAt(state, op.position, op.value, recorder);
+      case 'removeHead':
+        return executeRemoveHead(state, recorder);
+      case 'removeTail':
+        return executeRemoveTail(state, recorder);
+      case 'removeAt':
+        return executeRemoveAt(state, op.position, recorder);
+      case 'search':
+        return searchSteps(state, op.value, recorder);
+      case 'getAt':
+        return getAtSteps(state, op.position, recorder);
+      case 'traverse':
+        return traverseSteps(state, recorder);
+      case 'toArray':
+        return toArraySteps(state, recorder);
     }
   },
 };

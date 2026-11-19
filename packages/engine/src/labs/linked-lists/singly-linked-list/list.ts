@@ -67,6 +67,97 @@ export class SinglyLinkedList<T> {
     return this;
   }
 
+  /**
+   * Insere na posição `index` (0 a `size`; em `size`, vira inserção no final).
+   * Lança `RangeError` se a posição não existe. O(1) nas pontas, O(n) no meio.
+   */
+  insertAt(index: number, value: T): this {
+    if (!Number.isInteger(index) || index < 0 || index > this.#size) {
+      throw new RangeError(`Posição ${index} inexistente: aceita de 0 a ${this.#size}`);
+    }
+    if (index === 0) return this.prepend(value);
+    if (index === this.#size) return this.append(value);
+    const previous = this.#nodeAt(index - 1);
+    const node = new Node(value);
+    node.next = previous.next; // primeiro o novo nó aponta para o resto...
+    previous.next = node; // ...depois o anterior aponta para o novo: nunca se perde a cauda
+    this.#size += 1;
+    return this;
+  }
+
+  /** Remove o primeiro nó e devolve o valor. Lança `RangeError` se a lista está vazia. O(1). */
+  removeFirst(): T {
+    const first = this.#head;
+    if (first === null) throw new RangeError('Lista vazia: não há nó para remover');
+    this.#head = first.next;
+    if (this.#head === null) this.#tail = null;
+    this.#size -= 1;
+    return first.value;
+  }
+
+  /** Remove o último nó e devolve o valor. Lança `RangeError` se vazia. O(n): precisa do anterior. */
+  removeLast(): T {
+    if (this.#head === null) throw new RangeError('Lista vazia: não há nó para remover');
+    return this.removeAt(this.#size - 1);
+  }
+
+  /**
+   * Remove o nó da posição `index` e devolve o valor. Lança `RangeError` se a posição não
+   * existe (inclusive em lista vazia). O(1) no início, O(n) nas demais.
+   */
+  removeAt(index: number): T {
+    this.#assertExists(index);
+    if (index === 0) return this.removeFirst();
+    const previous = this.#nodeAt(index - 1);
+    const target = previous.next;
+    if (target === null) throw new Error('invariante violada: ligação ausente');
+    previous.next = target.next;
+    if (target === this.#tail) this.#tail = previous;
+    this.#size -= 1;
+    return target.value;
+  }
+
+  /** Valor da posição `index`. Lança `RangeError` se a posição não existe. O(n). */
+  get(index: number): T {
+    this.#assertExists(index);
+    return this.#nodeAt(index).value;
+  }
+
+  /**
+   * Posição da PRIMEIRA ocorrência de `value` (comparação por `===`), ou -1 se ausente.
+   * Com repetidos, devolve sempre a menor posição. O(n).
+   */
+  indexOf(value: T): number {
+    let index = 0;
+    for (let current = this.#head; current !== null; current = current.next) {
+      if (current.value === value) return index;
+      index += 1;
+    }
+    return -1;
+  }
+
+  /** Percorre do início ao fim, na ordem da lista. O(n). */
+  *[Symbol.iterator](): IterableIterator<T> {
+    for (let current = this.#head; current !== null; current = current.next) {
+      yield current.value;
+    }
+  }
+
+  #assertExists(index: number): void {
+    if (this.#size === 0) throw new RangeError('Lista vazia: não há posição válida');
+    if (!Number.isInteger(index) || index < 0 || index >= this.#size) {
+      throw new RangeError(`Posição ${index} inexistente: aceita de 0 a ${this.#size - 1}`);
+    }
+  }
+
+  /** Anda de nó em nó até `index` (já validado). */
+  #nodeAt(index: number): Node<T> {
+    let current = this.#head;
+    for (let i = 0; i < index && current !== null; i += 1) current = current.next;
+    if (current === null) throw new Error('invariante violada: posição fora da lista');
+    return current;
+  }
+
   /** Percorre do início ao fim e devolve os valores na ordem da lista. O(n) em tempo e em espaço. */
   toArray(): T[] {
     const values: T[] = [];

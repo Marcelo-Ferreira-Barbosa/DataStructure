@@ -39,6 +39,7 @@ O modelo de referência dá um segundo caminho, independente e simples, para o m
 
 - Há duas implementações do mesmo comportamento para manter. Em troca, uma diverge da outra e o teste de conformidade acusa.
 - A classe, por ora, só é usada em testes (código de produção "sem uso"). Se virar incômodo, a Q82 decide exportá-la ou movê-la para `testing/`.
+- (PROMPT 11, 18/11/2026) O item cresceu de 3 para 10 operações e foi dividido por responsabilidade: `types.ts`, `list-state.ts`, `steps.ts`, `insert.ts`, `remove.ts`, `query.ts` e `singly-linked-list.ts` (descritor e despacho). A lista real ganhou os métodos equivalentes (`insertAt`, `removeFirst`, `removeLast`, `removeAt`, `get`, `indexOf`, iterador), e o teste de conformidade passou a cobrir também as recusas. Nenhuma decisão deste ADR mudou.
 - Estruturas futuras com a mesma tensão (árvores, grafos) podem repetir o padrão, mas **não é obrigatório**: o ADR vale para esta estrutura.
 
 ## Pontos em aberto

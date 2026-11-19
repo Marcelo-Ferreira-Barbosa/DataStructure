@@ -3,6 +3,7 @@ import type { InitialStateResult, Item, ItemDefinition, ItemDescriptor } from '.
 import type { ItemTypes } from './item-types';
 import { LIMITS } from './limits';
 import { EngineInvariantError, type InputProblem } from './problems';
+import { deepFreeze } from './freeze';
 import { inspectState } from './inspect';
 import { createRecorder } from './recorder';
 import { ENGINE_REVISION } from './revision';
@@ -94,7 +95,9 @@ export function defineItem<T extends ItemTypes>(def: ItemDefinition<T>): Item {
       if (complexity === undefined || steps().length === 0)
         throw new EngineInvariantError('Execução sem passos ou sem complexidade');
 
-      const execution: Execution<T> = {
+      // A execução entregue é um valor imutável: o array de passos, o resultado e os metadados
+      // também ficam congelados (cada passo já vem congelado do registrador).
+      const execution: Execution<T> = deepFreeze({
         operationName: typedOp.type,
         operation: typedOp,
         outcome: result.outcome,
@@ -113,7 +116,7 @@ export function defineItem<T extends ItemTypes>(def: ItemDefinition<T>): Item {
           rejection: result.outcome === 'rejected' ? result.reason : null,
           counters: counters(),
         },
-      };
+      });
       // Segundo e último ponto de apagamento: Execution<T> -> Execution (sem genéricos).
       return { outcome: result.outcome, execution: execution as unknown as Execution };
     },

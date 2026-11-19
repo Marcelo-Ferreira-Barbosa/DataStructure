@@ -10,14 +10,8 @@ export function deepEqual(a: unknown, b: unknown): boolean {
   return keys.every((key) => Object.hasOwn(right, key) && deepEqual(left[key], right[key]));
 }
 
-/** Congela em profundidade; qualquer tentativa de mutação passa a lançar (módulos ESM são estritos). */
-export function deepFreeze<T>(value: T): T {
-  if (typeof value === 'object' && value !== null && !Object.isFrozen(value)) {
-    Object.freeze(value);
-    for (const child of Object.values(value)) deepFreeze(child);
-  }
-  return value;
-}
+/** Congela em profundidade: é o mesmo `deepFreeze` do núcleo, que o registrador usa em cada passo. */
+export { deepFreeze } from '../core/freeze';
 
 /** Cópia profunda de dados JSON (objetos simples, listas e primitivos). */
 export function deepClone<T>(value: T): T {
