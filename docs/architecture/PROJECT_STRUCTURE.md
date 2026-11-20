@@ -142,6 +142,7 @@ datastructure-studio/
 ├── docs/
 │   ├── product/                           ✔  Existe (PROJECT_OVERVIEW.md)
 │   ├── requirements/                      ✔  Existe (REQUIREMENTS, USE_CASES, USER_FLOWS)
+│   ├── design/                            ✔  Existe (INTERFACE.md e img/; criada no PROMPT 12 a pedido do autor)
 │   └── architecture/                      ✔  Existe (ARCHITECTURE, DATABASE, API, PROJECT_STRUCTURE)
 │       └── DECISIONS/                     ✔  Existe (ADR-0001 a ADR-0014)
 │
@@ -234,7 +235,7 @@ Arquivos **planos por domínio** (`auth.ts`, `projects.ts`, `simulations.ts`, `s
 
 ### 5.6 `docs`, `infra`, `.github`
 
-- **`docs/`** mantém as três pastas existentes. **Nenhuma pasta nova** é criada agora. Convenções de desenvolvimento ficam **neste documento** e em um `CONTRIBUTING.md` curto na raiz.
+- **`docs/`** tinha três pastas; ganhou **`design/`** (INTERFACE.md e `img/`) no PROMPT 12, por pedido explícito do autor. Nenhuma outra pasta nova. Convenções de desenvolvimento ficam **neste documento** e em um `CONTRIBUTING.md` curto na raiz.
 - **`infra/`** plana: `compose.yaml` (PostgreSQL de desenvolvimento; depois perfil completo) e `Dockerfile` (quando houver o que empacotar). Subpastas só quando houver outra tecnologia (ex.: implantação em um provedor).
 - **`.github/`**: `workflows/ci.yml`, `dependabot.yml` e `pull_request_template.md`. Sem `ISSUE_TEMPLATE`, `CODEOWNERS` ou `FUNDING` (sem necessidade num projeto de uma pessoa).
 
