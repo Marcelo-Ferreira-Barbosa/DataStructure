@@ -58,3 +58,11 @@ export type {
   StructureKind,
   StructureState,
 } from './core/state';
+
+// Tipos do item "lista simplesmente encadeada" (ADR-0004: o catálogo de textos da interface é
+// tipado por eles, então uma chave ou âncora sem texto vira erro de compilação). Só tipos.
+export type {
+  SinglyLinkedListAnchor,
+  SinglyLinkedListMessages,
+  SinglyLinkedListOperation,
+} from './labs/linked-lists/singly-linked-list/types';

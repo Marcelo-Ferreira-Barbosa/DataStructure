@@ -1,6 +1,6 @@
 # Interface do DataStructure Studio: design e estrutura do laboratório de listas
 
-- **Versão:** 0.2 · **Data:** 20/11/2026 · **Status:** **Aprovada** (autor aceitou as recomendações Q88 a Q97 em 20/11/2026; nada de interface foi implementado ainda)
+- **Versão:** 0.3 · **Data:** 21/11/2026 · **Status:** **Aprovada; laboratório da lista implementado no PROMPT 13** (Apêndice B). Início, Catálogo, roteador e abas do celular seguem pendentes.
 - **Escopo:** identidade visual, telas, componentes, navegação, estado, acessibilidade e plano de implementação do front-end, com foco no laboratório de **Lista simplesmente encadeada**.
 - **Não faz parte:** backend, autenticação, projetos salvos, outros laboratórios (a Pilha existe na Engine, mas sua interface não está neste escopo).
 - **Documentos de base:** [ARCHITECTURE.md](../architecture/ARCHITECTURE.md) §8 e §12 · [USER_FLOWS.md](../requirements/USER_FLOWS.md) §3 a §5 · [ENGINE.md](../architecture/ENGINE.md) · [SINGLY_LINKED_LIST.md](../architecture/SINGLY_LINKED_LIST.md) · ADR-0004 (conteúdo por chaves), ADR-0010 (estado), ADR-0011 (SVG).
@@ -515,7 +515,7 @@ Cada fatia termina com `pnpm check` verde e é entregável sozinha.
 | **12.4 Painéis** | Dados iniciais, operações (formulário do descritor), pseudocódigo, contadores, complexidade, histórico | As 10 operações funcionam; recusa e entrada inválida explicadas; textos completos |
 | **12.5 Responsividade e acessibilidade** | Abas ≤ 760 px, foco, região viva, movimento reduzido, roteiro de teclado | Roteiro manual cumprido; testes por papéis; orçamento de pacote respeitado |
 
-💡 Cada fatia pode ser **um prompt** (12.1 a 12.5), na ordem que você preferir.
+💡 Cada fatia pode ser **um prompt**, na ordem que você preferir. ✅ **Numeração corrigida pelo autor:** a implementação é a partir do PROMPT 13, então as fatias passam a ser "13.x" quando forem feitas. O que o PROMPT 13 já cobriu está no **Apêndice B**: o visualizador (12.2), a reprodução (12.3) e os painéis (12.4) estão feitos; a fundação (12.1) e a responsividade/acessibilidade (12.5) estão **parciais**.
 
 ---
 
@@ -563,3 +563,97 @@ Feita por medição, não a olho:
 | Legibilidade do SVG no celular | **Reprovada** com SVG escalado (rótulos ~6 px); **aprovada** com quebra em linhas (rótulos ≥ 13 px) |
 
 Limites da validação: é um **mockup estático** (HTML), sem interação, sem animação e sem leitor de tela. Valida identidade, disposição e medidas; não valida comportamento.
+
+---
+
+## Apêndice B. O que o PROMPT 13 implementou (21/11/2026)
+
+### B.1 Escopo
+
+O PROMPT 13 pediu a **integração da Engine com o laboratório**: executar operações e ver a estrutura passo a passo. Foi feito só isso, mais a base mínima para isso funcionar. **Não** foram feitos: roteador, telas T-01/T-02/T-08/T-09, abas do celular, confirmação ao recriar a lista. Por isso `react-router` **não foi instalado** (Q88 aprovou o pacote, mas nada o usa ainda; instalar sem uso contraria a regra de dependências). `App` mostra o laboratório direto.
+
+### B.2 Dependências adicionadas (todas aprovadas na Q88/Q94, versões exatas)
+
+`zustand` 5.1.0 · `tailwindcss` e `@tailwindcss/vite` 4.3.5 · `@testing-library/react` 16.3.3, `@testing-library/dom` 10.4.2 (dependência exigida por ela) e `@testing-library/user-event` 14.6.13. Na Engine: só **tipos** exportados (Q95): `SinglyLinkedListAnchor`, `SinglyLinkedListMessages`, `SinglyLinkedListOperation`.
+
+### B.3 Estrutura criada em `apps/web/src`
+
+```text
+styles/index.css                    tokens (@theme), foco, movimento reduzido
+content/pt-BR/                      textos (messages, pseudocode, operations, problems,
+                                    complexity, results, text) + content.test.ts
+features/lab/
+  playback.ts                       reducer PURO da reprodução          (+ playback.test.ts)
+  session.ts                        transições da sessão, ÚNICO ponto que chama a Engine
+                                    para criar lista e executar         (+ session.test.ts)
+  selectors.ts                      passo atual e estado a desenhar
+  operation-input.ts                texto digitado → valores brutos (sem validar)
+  store.ts                          store Zustand fina; injeta item e política de autoplay
+  LabContext.tsx                    provider, hooks, relógio (useAutoplay)
+  LabPage.tsx                       composição da tela                  (+ LabPage.test.tsx)
+  components/                       InitialDataPanel, OperationPanel, PlaybackControls,
+                                    StepExplanation (+ ResultPanel), PseudocodePanel,
+                                    CountersPanel (+ ComplexityPanel), HistoryPanel, ui, icons
+features/visualizers/
+  useElementWidth.ts
+  linked-list/                      layout.ts (puro), roles.ts, describe.ts,
+                                    ListVisualizer.tsx                  (+ layout.test.ts)
+```
+
+### B.4 Como a integração funciona
+
+| Pergunta | Resposta |
+|---|---|
+| Quem chama a Engine? | **Só** `session.ts`, via ações da store (`createList`, `runOperation`). Nenhum componente importa `item.run` |
+| O que a interface decide sobre validade? | **Nada.** Vazio vira `undefined`, texto segue como texto, número segue como número; a Engine responde `REQUIRED`, `INVALID_TYPE`, `OUT_OF_RANGE`, `LIMIT_EXCEEDED` e a interface só **traduz** o código |
+| De onde vem o que se desenha? | Do `steps[cursor]` da execução real (estado, destaques, mensagem, âncora, contadores). Sem execução, da lista em repouso |
+| Onde fica a lógica de interação? | `playback.ts` e `session.ts` (funções puras, sem React). Componentes só leem estado e disparam ações |
+| Como se preservam os estados anteriores? | `history` guarda cada `Execution` inteira (imutável, congelada pela Engine). Navegar nunca altera `structure`, `history` nem `execution` (testado por identidade de referência) |
+| O que é "reiniciar"? | Volta ao **passo 1 e pausa**. "Repetir" (no último passo) recomeça tocando. Criar nova lista apaga execução e histórico |
+| E se executar no meio de uma reprodução? (Q97) | A nova substitui a exibição; a anterior **já está no histórico** e seu estado final já é a lista em repouso, então nada se perde |
+| Falha inesperada da Engine? | Vira aviso na tela (`role="alert"`), a lista e o histórico ficam como estavam |
+| Autoplay (Q90) | Começa tocando, exceto com `prefers-reduced-motion` |
+
+### B.5 Desvios da proposta (declarados)
+
+| Proposta | Feito | Motivo |
+|---|---|---|
+| Filtros de categoria + `select` | `select` com `optgroup` (Inserir, Remover, Consultar, Percorrer) | Menos código, nativo e acessível; cumpre o mesmo agrupamento |
+| Ajuda dinâmica "posição de 0 a n" | Ajuda **estática** do descritor ("De 0 a 49") | A faixa real depende da operação e do tamanho: calculá-la seria **recriar regra da Engine**. Quem informa o tamanho real é a mensagem de recusa |
+| Confirmação (`<dialog>`) ao recriar a lista com histórico | Aviso em texto: "Criar uma nova lista apaga o histórico" | Pendente: o `showModal` do jsdom é incerto nos testes |
+| Abas no celular (≤ 760 px) | Uma coluna empilhada, com a **visualização primeiro** | Pendente (12.5). Sem rolagem horizontal em 390 px (medido) |
+| Mockup com 5 botões e rótulos | Botões com ícone + `aria-label`; o de reproduzir mostra o texto | Alvos ≥ 44 px, nome acessível em todos |
+
+### B.6 Visualizador (como ficou)
+
+![Laboratório implementado, desktop](img/lab-implementado-desktop.png)
+
+*Captura real do build (Chromium, 1440 px): "inserir 9 na posição 2" em `[4, 8, 15]`, passo 5 de 7, com o nó novo ainda solto. A versão de 390 px está em `img/lab-implementado-mobile.png`.*
+
+- `layoutList(estado, largura)` é **pura**: cadeia por `head → next`, quebra em linhas por largura, seta que contorna pelas margens, caixa `null`, faixa de **nós soltos** (nó recém-criado e nó já desligado) com sua seta.
+- Cada nó leva `data-node-id`, `data-zone` (`chain`/`tray`) e `data-roles`, que os testes usam para provar o que está desenhado.
+- Papéis: `Record<HighlightRole, …>` exaustivo; marcadores de texto (＋ novo, ✕ removido, ★ encontrado…) e **risco diagonal** no removido, então a cor nunca é o único sinal.
+- Descrição textual de cada passo é o `aria-label` do SVG.
+- Ajuste feito ao olhar a tela: a seta do nó solto chegava ao nó de destino por cima do rótulo `tail`; passou a chegar pelo canto direito, e o texto da faixa de soltos ganhou contorno.
+
+### B.7 Testes (todos executados; `pnpm check` verde)
+
+| Arquivo | Testes | O que prova |
+|---|---|---|
+| `playback.test.ts` | 18 | Todas as transições do reducer, bordas, tick atrasado ignorado, reiniciar, imutabilidade |
+| `session.test.ts` | 24 | Resultados reais da Engine, recusa × entrada inválida, falha interna, histórico preservado, encadeamento, congelamento, sincronização por cursor |
+| `layout.test.ts` | 21 | Cadeia, vazio, nó solto, quebra de linha, nenhuma seta fora do desenho (160 a 1200 px), 50 nós sem sobreposição, descrição, papéis |
+| `content.test.ts` | 17 | **47 chaves** de mensagem e **46 âncoras** com texto, frases completas em execuções reais, linhas de pseudocódigo ≤ 36 caracteres, todo passo real cai numa linha existente |
+| `LabPage.test.tsx` | 36 | Inserção visual, remoção visual, pesquisa, avançar/voltar, reiniciar, autoplay (relógio falso), erros, sincronização Engine × interface |
+| `App.test.tsx` | 1 | Renderiza o laboratório |
+| **Web** | **117** | |
+
+Verificação dos testes por **mutação** (quebrar o código de propósito): retroceder avançando, lista em repouso sem atualizar, nós soltos sem desenhar, reiniciar sem efeito, falha da Engine propagada e uma âncora sem texto de pseudocódigo foram **todos detectados**.
+
+Medidas no build: JS 281,65 kB (85,95 kB comprimido) + CSS 13,55 kB (3,86 kB); orçamento de 130 kB comprimidos respeitado. Sem rolagem horizontal e sem alvo menor que 44 px em 1440 e 390 px.
+
+### B.8 Limites desta validação
+
+- Testes de componente rodam em **jsdom**, que não mede layout: a largura do SVG usa um valor padrão nos testes, e o comportamento por largura é validado no `layout` puro e por captura de tela (Chromium), não por teste automatizado.
+- **Não** foi testado com leitor de tela real nem em navegador além do Chromium.
+- Contadores seguem provisórios (Q17).

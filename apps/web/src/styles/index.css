@@ -1,0 +1,76 @@
+@import 'tailwindcss';
+
+/*
+ * Tokens de design (INTERFACE.md §3.2). Nomes semânticos: um tema claro, no futuro, só troca os
+ * valores. Todos os pares de texto/fundo foram conferidos por cálculo de contraste WCAG.
+ */
+@theme {
+  --color-bg: #0b1020;
+  --color-surface: #121a2e;
+  --color-raised: #1a2540;
+  --color-raised-2: #223153;
+  --color-border: #2a3a5c;
+  --color-border-strong: #5a6e99;
+  --color-text: #e8eef9;
+  --color-muted: #a8b7d1;
+  --color-faint: #8fa3c7;
+  --color-accent: #4d8dff;
+  --color-accent-text: #6ea8ff;
+  --color-btn: #2563eb;
+  --color-btn-hover: #1d4ed8;
+  --color-focus: #93c5fd;
+  --color-ok: #6ee7a0;
+  --color-err: #ff9a9a;
+  --color-warn: #ffc27a;
+  --color-role-current: #5b9bff;
+  --color-role-visited: #8a9bc2;
+  --color-role-previous: #b79cff;
+  --color-role-inserted: #38d5e8;
+  --color-role-removed: #ff7b7b;
+  --color-role-found: #4ade80;
+  --color-role-notfound: #ffa24c;
+  --color-code-current: #1e3a7a;
+
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'Cascadia Code', Menlo, Consolas, monospace;
+
+  --animate-appear: appear 220ms ease-out;
+  @keyframes appear {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+@utility paint-order-stroke {
+  paint-order: stroke;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  /* Foco visível em tudo (RNF-017): anel de 3 px com deslocamento. */
+  :focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+}
+
+/* Movimento reduzido (RNF-018): a informação continua, só não anima. */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

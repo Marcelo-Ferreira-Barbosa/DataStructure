@@ -282,7 +282,7 @@ Compatibilidade: **nenhum teste anterior foi alterado ou removido** (os 166 da v
 3. **O item só aceita números** (-999 a 999). A classe `SinglyLinkedList<T>` é genérica, mas só os testes a usam.
 4. O estado de entrada do chamador fica congelado depois de `run` (§4.3). É intencional, mas é uma regra a conhecer.
 5. **Contadores provisórios** até a Q17.
-6. **Sem textos em português** para as 47 chaves de mensagem e sem texto de pseudocódigo: a interface ainda não existe.
+6. ~~Sem textos em português para as 47 chaves de mensagem e sem pseudocódigo~~ ✅ **Resolvido no PROMPT 13**: `apps/web/src/content/pt-BR` tem os 47 textos e o pseudocódigo das 46 âncoras, com teste de cobertura contra o descritor.
 7. A regra de lint "um item não importa outro item" continua sem automação (esta lista importa só de `core/`).
 8. `Step` e `Execution` **não foram congelados**: falta o terceiro tipo visual (ADR-0015 §10). A lista exerceu bastante o contrato (rejeições, resultado `found`, arestas, nó solto) sem exigir mudança, o que é evidência a favor.
 
