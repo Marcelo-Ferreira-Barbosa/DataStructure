@@ -9,6 +9,11 @@ catalog:
   '@types/node': 22.20.5
   '@vitest/coverage-v8': 5.1.0
 
-# Scripts de instalação permitidos (política do pnpm): só o esbuild, que valida seu binário nativo.
+# Scripts de instalação (política do pnpm): só o esbuild, que valida seu binário nativo, roda.
+# Prisma: os scripts de instalação ficam DESLIGADOS de propósito (false = decisão registrada, não
+# esquecimento). O comando `prisma generate` baixa o que precisa sob demanda, sem script de
+# instalação de terceiros rodando em `pnpm install`.
 allowBuilds:
   esbuild: true
+  '@prisma/engines': false
+  prisma: false

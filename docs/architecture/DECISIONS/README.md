@@ -24,6 +24,7 @@ Visão geral e diagramas: [`../ARCHITECTURE.md`](../ARCHITECTURE.md).
 | [0014](ADR-0014-politica-de-dependencias.md) | Política de dependências e avaliação da stack | Proposta |
 | [0015](ADR-0015-contratos-da-engine.md) | Contratos da Engine | **Aceita** |
 | [0016](ADR-0016-lista-encadeada-modelo-e-item.md) | Lista encadeada: modelo de referência e item da Engine | **Aceita** |
+| [0017](ADR-0017-cors-e-dominios-separados.md) | Web e API em domínios separados, com CORS restrito | **Aceita** |
 
 ## Status possíveis
 

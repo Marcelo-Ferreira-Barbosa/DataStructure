@@ -93,7 +93,12 @@ export default tseslint.config(
     },
   },
   {
-    files: ['apps/api/src/config/env.ts', 'apps/api/src/main.ts', ...TEST_FILES],
+    files: [
+      'apps/api/src/config/env.ts',
+      'apps/api/src/main.ts',
+      'apps/api/prisma.config.ts',
+      ...TEST_FILES,
+    ],
     rules: { 'no-restricted-properties': 'off' },
   },
 

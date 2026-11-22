@@ -1,0 +1,24 @@
+# PostgreSQL de desenvolvimento (ADR-0012): a API e o Web rodam na sua máquina; só o banco fica
+# no contêiner. Uso:  docker compose -f infra/compose.yaml up -d
+# As credenciais abaixo são SÓ para desenvolvimento local e batem com o .env.example.
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dss
+      POSTGRES_PASSWORD: dss_dev_password
+      POSTGRES_DB: dss
+    ports:
+      # Só a própria máquina alcança o banco.
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - dss-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U dss -d dss']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  dss-postgres-data:

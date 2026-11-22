@@ -37,7 +37,7 @@ O MVP exige cadastro, login, logout e expiração controlada (RF-033 a RF-036). 
 - Sessão no servidor torna **logout, expiração e invalidação** verdadeiras e testáveis (RF-035, RF-036).
 - Guardar só o **hash do token** limita o dano de um vazamento do banco.
 - Cookie `httpOnly` elimina o roubo do token por XSS.
-- **Mesma origem** dispensa CORS e simplifica CSRF.
+- ~~Mesma origem dispensa CORS e simplifica CSRF.~~ Substituído pelo ADR-0017 (domínios separados, CORS restrito).
 - Escopo pequeno e totalmente transparente, adequado a um projeto de portfólio que deve demonstrar compreensão, não só uso de bibliotecas.
 
 ## Consequências

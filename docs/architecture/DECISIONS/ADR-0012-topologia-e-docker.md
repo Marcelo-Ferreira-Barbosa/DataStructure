@@ -1,6 +1,6 @@
 # ADR-0012 — Topologia de execução, mesma origem e Docker
 
-- **Status:** Proposta (Docker: ✅ confirmado na stack; topologia é 💡)
+- **Status:** Proposta (Docker: ✅ confirmado na stack; topologia é 💡). **Decisão 1 (mesma origem) substituída pelo [ADR-0017](ADR-0017-cors-e-dominios-separados.md)**
 - **Data:** 13/11/2026
 - **Requisitos relacionados:** RNF-002, RNF-005, RNF-006, RNF-024, RNF-027, RNF-031, RNF-035
 - **Depende de:** Q4 (deploy público ou não)

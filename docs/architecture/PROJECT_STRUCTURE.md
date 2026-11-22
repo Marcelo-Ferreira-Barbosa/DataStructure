@@ -193,6 +193,8 @@ datastructure-studio/
 
 ### 5.2 `apps/api/src`
 
+> ✅ **Estado real (PROMPT 14):** a primeira entrega usa `shared/` (no lugar de `http/` + `lib/`, com `shared/http/` para os *middlewares*), `database/` (no lugar de `db/`) e `testing/` (no lugar de `test/`); `prisma/` fica em `apps/api/prisma/` (fora de `src`) e o cliente gerado em `apps/api/generated/` (ignorado pelo Git). Só existe o módulo `health`. ❓ Q98: manter os nomes reais ou renomear para os da tabela? Recomendação: manter e atualizar a tabela.
+
 | Pasta | Responsabilidade | Observação |
 |---|---|---|
 | `main.ts` | Liga o servidor (`listen`), lê a configuração, trata sinais de encerramento | Fino; sem lógica |

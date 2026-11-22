@@ -1,10 +1,80 @@
 # DataStructure Studio — Contratos da API REST (MVP)
 
-> **Versão:** 0.1 (rascunho para validação)
-> **Data:** 14/11/2026
+> **Versão:** 0.2 (contrato + estado real da implementação, seção 0)
+> **Data:** 22/11/2026
 > **Base:** `REQUIREMENTS.md`, `USE_CASES.md`, `USER_FLOWS.md`, `ARCHITECTURE.md` (seções 9, 10.6, 13 e 14) e ADR-0006 a ADR-0009
 > **Documento complementar:** [`DATABASE.md`](DATABASE.md) (modelo de dados e decisões pendentes Q44 a Q64)
-> **Escopo:** define **o contrato HTTP** do MVP. **Não** implementa endpoints, não contém código nem migrations. Os exemplos em JSON são **ilustrações do contrato**.
+> **Escopo:** define **o contrato HTTP** do MVP. O contrato **não** contém código nem migrations; os exemplos em JSON são **ilustrações**. A **seção 0** registra o que **já existe de fato** no servidor (PROMPT 14); o restante do documento continua sendo o contrato a implementar.
+
+---
+
+## 0. Estado da implementação (PROMPT 14, primeira entrega)
+
+> ✅ = implementado e testado · ○ = contrato aprovado, ainda **não** implementado (depende de decisões pendentes, seção 10).
+
+### 0.1 Endpoints
+
+| ID | Rota | Estado | Observação |
+|---|---|---|---|
+| **E-13** | `GET /api/health` | ✅ | `200 {"status":"ok"}` ou `503 SERVICE_UNAVAILABLE`; `HEAD` também funciona; outros métodos → 405 com `Allow: GET, HEAD` |
+| E-01 a E-12 | contas, sessão, projetos, simulações | ○ | Bloqueados por Q44–Q64 (schema, autenticação, limites). **Nenhum** foi criado, para não inventar o que não foi aprovado |
+
+Toda rota desconhecida (dentro ou fora de `/api`) devolve **404 JSON** no envelope padrão; nunca HTML.
+
+### 0.2 Infraestrutura transversal já ativa (✅)
+
+| Item | Comportamento real | Onde |
+|---|---|---|
+| Identificador de requisição | Gerado **sempre** no servidor (UUID v4); o `X-Request-Id` enviado pelo cliente é **ignorado** (evita forjar linhas de log). Vai no cabeçalho da resposta e em `error.requestId` | `shared/http/request-id.ts` |
+| Registro (log) | Uma linha JSON por requisição: método, **caminho sem query string**, status, duração. Nunca corpo, cabeçalhos, senhas ou tokens | `shared/http/request-logger.ts` |
+| Cabeçalhos de segurança | `helmet` + `Cache-Control: no-store`; `X-Powered-By` removido | `shared/http/security-headers.ts` |
+| **CORS** | **Web e API em domínios separados (Q98, ADR-0017).** Só a origem exata de `APP_ORIGIN` é liberada (`Access-Control-Allow-Origin` com essa origem, `Allow-Credentials: true`, `Expose-Headers: X-Request-Id`, `Vary: Origin`); nunca `*` nem eco de origem arbitrária. Pré-verificação (`OPTIONS`) da origem permitida → **204** com `Allow-Methods: GET, POST, PATCH, DELETE`, `Allow-Headers: Content-Type`, `Max-Age: 600`. Outra origem não recebe nenhum `Access-Control-*`. CORS protege o **leitor**; as mutações continuam protegidas pela verificação de `Origin` | `shared/http/cors.ts` + testes |
+| Corpo JSON | `Content-Type` diferente de JSON → **415**; acima do limite → **413** (16 KB; 48 KB nas simulações, quando existirem); JSON malformado → **400** sem a mensagem do *parser* | `shared/http/json-body.ts` |
+| Origem em mutações | `requireSameOrigin`: `Origin` ausente ou diferente → **403 INVALID_ORIGIN**. Pronto, mas **ainda sem rota** que o use (Q62 pendente) | `shared/http/same-origin.ts` |
+| Validação | `parseRequest(req, { params, query, body })` com esquemas Zod de `@dss/contracts`; devolve **só** dados tipados (nunca `req.body` cru); reporta **todos** os campos inválidos, sem ecoar o valor recebido | `shared/http/parse-request.ts`, `packages/contracts/src/validation.ts` |
+| 405 | `mountRoute` declara os métodos da rota; os demais → 405 + `Allow` | `shared/http/route.ts` |
+| Erros | Tratador central único. Erros conhecidos viram o envelope da seção 2.8; **qualquer outro** vira `500 INTERNAL` com mensagem genérica. Causa, pilha e SQL ficam **só** no log do servidor (pilha fora de produção) | `shared/http/error-handler.ts` |
+
+**Ordem real dos *middlewares*:** identificador → registro → cabeçalhos → rotas → 404 → tratador de erros. Por rota: método (405) → origem (403) → tipo/tamanho do corpo (415/413) → validação (400) → serviço.
+
+### 0.3 Códigos de campo e limitação conhecida
+
+Os 9 códigos de campo (seção 2.10) e os 13 códigos de erro (2.9) existem como esquemas Zod em `@dss/contracts` (`errors.ts`) e são a **única** fonte do formato. Mapeamento do Zod: ausente → `REQUIRED`; texto/lista curto/longo → `TOO_SHORT`/`TOO_LONG`; número fora do intervalo → `OUT_OF_RANGE`; formato → `INVALID_FORMAT`; chave extra → `NOT_ALLOWED`.
+
+💡 **Limitação:** o Zod só informa o limite **violado**, então `fields[].meta` traz `min` **ou** `max`, não os dois (a seção 2.10 prevê ambos). É suficiente para a mensagem de erro; se a interface precisar dos dois, a regra de limites passa a ser lida do esquema.
+
+### 0.4 Camadas (ADR-0008) e controladores
+
+`rotas → (middlewares + validação) → controller → service → repository → Prisma`. O **controller** é fino: extrai dados validados, chama **um** serviço, escolhe o status. **Serviço** não conhece Express nem Prisma; **repositório** é o único que usa o Prisma e não contém regra de negócio. As dependências são passadas à mão em `main.ts` (sem contêiner de DI). Em E-13: regra = "só está ok se alcança o banco em até 2 s"; repositório = `SELECT 1`.
+
+### 0.5 Variáveis de ambiente (lidas só em `config/env.ts` e `main.ts`)
+
+| Variável | Obrigatória | Padrão | Observação |
+|---|---|---|---|
+| `DATABASE_URL` | **sim** | — | `postgresql://…`. **Segredo**: nunca vai a log nem a resposta; mensagens de erro de configuração não a contêm. Sem ela o servidor **não sobe** |
+| `PORT` | não | `3000` | Inteiro 1–65535 |
+| `APP_ORIGIN` | não | `http://localhost:5173` | Origem aceita nas mutações (normalizada) |
+| `NODE_ENV` | não | `development` | `production` esconde pilhas dos logs |
+
+### 0.6 Como executar
+
+```bash
+cp .env.example .env                              # valores de desenvolvimento
+docker compose -f infra/compose.yaml up -d        # PostgreSQL 16 local
+pnpm install                                      # roda `prisma generate` (precisa de rede na 1ª vez)
+pnpm dev:api                                      # http://localhost:3000
+curl -i http://localhost:3000/api/health          # 200 {"status":"ok"}
+```
+
+Testes: `pnpm test` (rápido, sem banco). Com banco real: `TEST_DATABASE_URL=postgresql://dss:dss_dev_password@localhost:5432/dss pnpm test` roda também o teste de integração de E-13 (200 com banco no ar; 503 sem vazar infraestrutura com banco inacessível).
+
+### 0.6a Mudança de contrato (Q98)
+
+O contrato 0.1 e o ADR-0012 previam **mesma origem, sem CORS**. Por decisão do autor (Q98: "domínios separados para melhor organização"), a API passou a ter CORS restrito (ADR-0017). Consequências: (1) em desenvolvimento o proxy do Vite deixa de ser necessário (o Web chama `http://localhost:3000` direto, com `credentials: 'include'`); (2) a API **não** serve mais o SPA em produção; (3) `APP_ORIGIN` agora é o domínio público do Web; (4) cookie de sessão: ver o aviso na seção 7.4 (Q101).
+
+### 0.7 Ainda não existe (de propósito)
+
+Autenticação e sessão (E-01 a E-04), modelos e migrations do Prisma, limitação de taxa (Q62, exige dependência não aprovada), *rate limit* do login, entrega do SPA pela API (não será feita: Web em domínio próprio), `Dockerfile`.
 
 ---
 
@@ -28,7 +98,7 @@
 | Prefixo | Todas as rotas começam com `/api`. Rota inexistente sob `/api` devolve **JSON `404 NOT_FOUND`**, nunca a página do SPA (a API serve o SPA em produção, ADR-0012) |
 | Formato | JSON em UTF-8. Corpos exigem `Content-Type: application/json`; caso contrário, **415** |
 | Versionamento | Sem prefixo de versão no MVP; o que se versiona é o **formato do documento de simulação** (ADR-0006) |
-| Origem | **Mesma origem**; não há CORS e nenhum cabeçalho `Access-Control-*` é enviado |
+| Origem | **Origens separadas** (Web e API em domínios distintos). CORS restrito a uma origem permitida, com credenciais (ADR-0017) |
 | Datas | ISO 8601 em UTC (ex.: `2026-11-14T08:30:00.000Z`) |
 | Identificadores | UUID em texto. Identificador malformado em rota ou consulta → **400** `VALIDATION_FAILED` (❓ Q61) |
 | Cache | Respostas que contêm dados do usuário levam `Cache-Control: no-store` |
@@ -590,7 +660,7 @@ A lista `operations` é o **histórico da sessão** que o usuário decidiu salva
 
 ### 7.4 CSRF e origem
 
-`SameSite=Lax` + `Content-Type: application/json` + verificação de `Origin` em mutações (seção 2.3). Sem CORS.
+`SameSite=Lax` + `Content-Type: application/json` + verificação de `Origin` em mutações (seção 2.3) + CORS restrito à origem do Web (ADR-0017). ⚠ Com domínios separados, `SameSite=Lax` só envia o cookie se Web e API forem do **mesmo site** (ex.: `app.exemplo.com` e `api.exemplo.com`); em sites diferentes seria preciso `SameSite=None; Secure`, que enfraquece a defesa. Decisão a tomar junto com a autenticação (❓ Q101).
 
 ### 7.5 Validação e proteção de dados
 
@@ -633,7 +703,7 @@ O limitador por IP em memória não é compartilhado entre instâncias (RNF-027,
 | **API5** Autorização quebrada em nível de função | Só há um papel (usuário); sem endpoints administrativos |
 | **API6** Fluxos sensíveis sem proteção | Cadastro e login com limite de taxa |
 | **API7** SSRF | A API não faz requisições a URLs fornecidas pelo usuário |
-| **API8** Configuração incorreta | `helmet`, variáveis validadas na subida, mensagens de erro neutras, sem CORS aberto |
+| **API8** Configuração incorreta | `helmet`, variáveis validadas na subida, mensagens de erro neutras, CORS restrito a uma origem aberto |
 | **API9** Gestão inadequada de inventário | Este documento é o inventário; rotas inexistentes devolvem 404 JSON |
 | **API10** Consumo inseguro de APIs | A API não consome APIs de terceiros no MVP |
 
@@ -718,4 +788,4 @@ As decisões completas (21, Q44 a Q64) estão em [`DATABASE.md`](DATABASE.md), s
 
 ---
 
-*Fim do documento. Migrations e implementação de endpoints só serão iniciadas mediante solicitação.*
+*Fim do documento. Os endpoints E-01 a E-12 e as migrations só serão implementados após a decisão das pendências acima e mediante solicitação.*
